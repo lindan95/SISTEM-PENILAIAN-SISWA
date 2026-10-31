@@ -9,7 +9,11 @@ import {
   Printer,
   Sparkles,
   ChevronRight,
+  Cloud,
+  CloudCheck,
+  RefreshCw,
 } from 'lucide-react';
+import { User } from 'firebase/auth';
 import { TahunAjaran, Kelas, Mapel, Semester, ProfilGuru } from '../types';
 
 interface HeaderProps {
@@ -21,6 +25,9 @@ interface HeaderProps {
   selectedSemester: Semester;
   selectedKelasId: string;
   selectedMapelId: string;
+  currentUser?: User | null;
+  isSyncing?: boolean;
+  onOpenCloudModal?: () => void;
   onSelectTahunAjaran: (val: string) => void;
   onSelectSemester: (val: Semester) => void;
   onSelectKelas: (val: string) => void;
@@ -39,6 +46,9 @@ export const Header: React.FC<HeaderProps> = ({
   selectedSemester,
   selectedKelasId,
   selectedMapelId,
+  currentUser,
+  isSyncing,
+  onOpenCloudModal,
   onSelectTahunAjaran,
   onSelectSemester,
   onSelectKelas,
@@ -81,6 +91,33 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action icons & Teacher Badge */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Cloud Multi-Device Sync Indicator & Button */}
+          {onOpenCloudModal && (
+            <button
+              onClick={onOpenCloudModal}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition border cursor-pointer ${
+                currentUser
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+              }`}
+              title="Pengaturan Sinkronisasi Cloud Antar Perangkat"
+            >
+              {isSyncing ? (
+                <RefreshCw className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
+              ) : currentUser ? (
+                <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Cloud className="w-3.5 h-3.5 text-indigo-600" />
+              )}
+              <span className="hidden sm:inline">
+                {currentUser ? 'Cloud: Aktif' : 'Sync Antar Perangkat'}
+              </span>
+              {currentUser && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              )}
+            </button>
+          )}
+
           <button
             onClick={onPrintCurrentView}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition"
@@ -93,7 +130,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
           {/* Teacher Info */}
-          <div className="flex items-center gap-2.5 pl-1">
+          <div
+            onClick={onOpenCloudModal}
+            className="flex items-center gap-2.5 pl-1 cursor-pointer hover:opacity-85 transition"
+            title="Klik untuk melihat status profil & akun cloud"
+          >
             <div className="w-8 h-8 rounded-full ring-2 ring-indigo-500/20 bg-indigo-100 overflow-hidden shrink-0 flex items-center justify-center font-bold text-xs text-indigo-700">
               {guru.fotoUrl ? (
                 <img

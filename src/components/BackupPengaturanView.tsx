@@ -10,7 +10,15 @@ import {
   CheckCircle2,
   HardDrive,
   FileJson,
+  Cloud,
+  CloudUpload,
+  CloudDownload,
+  Smartphone,
+  Laptop,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
+import { User } from 'firebase/auth';
 import { AppSettings } from '../types';
 import { StorageService } from '../services/storageService';
 
@@ -20,6 +28,12 @@ interface BackupPengaturanViewProps {
   onResetAllData: () => void;
   onRestoreJson: (jsonData: any) => void;
   showToast: (msg: string, type?: 'success' | 'warning' | 'error' | 'info') => void;
+  currentUser?: User | null;
+  onOpenCloudModal?: () => void;
+  onSyncToCloud?: () => Promise<void>;
+  onPullFromCloud?: () => Promise<void>;
+  lastSyncTime?: string | null;
+  isSyncing?: boolean;
 }
 
 export const BackupPengaturanView: React.FC<BackupPengaturanViewProps> = ({
@@ -28,6 +42,12 @@ export const BackupPengaturanView: React.FC<BackupPengaturanViewProps> = ({
   onResetAllData,
   onRestoreJson,
   showToast,
+  currentUser,
+  onOpenCloudModal,
+  onSyncToCloud,
+  onPullFromCloud,
+  lastSyncTime,
+  isSyncing,
 }) => {
   const [formData, setFormData] = useState<AppSettings>({ ...settings });
 
@@ -94,8 +114,61 @@ export const BackupPengaturanView: React.FC<BackupPengaturanViewProps> = ({
       <div className="border-b border-slate-200 pb-4">
         <h2 className="text-xl font-bold text-slate-900 tracking-tight">Pengaturan Sistem & Pencadangan Data</h2>
         <p className="text-xs text-slate-500">
-          Kelola parameter umum aplikasi, ekspor backup database JSON, serta pemulihan data.
+          Kelola parameter umum aplikasi, sinkronisasi cloud multi-perangkat, ekspor backup JSON, serta pemulihan data.
         </p>
+      </div>
+
+      {/* SECTION 0: CLOUD MULTI-DEVICE SYNC (FIREBASE FIRESTORE) */}
+      <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-950 text-white rounded-3xl p-6 shadow-md border border-indigo-700/50 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-indigo-200 text-xs font-semibold backdrop-blur-md">
+              <Cloud className="w-3.5 h-3.5 text-indigo-300" />
+              <span>Sinkronisasi Multi-Perangkat (Cloud Firebase)</span>
+              {currentUser && <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />}
+            </div>
+            <h3 className="text-lg font-bold tracking-tight">
+              Akses & Buka Data di HP, Laptop, atau PC Sekolah
+            </h3>
+            <p className="text-xs text-indigo-100/90 leading-relaxed">
+              Data lama Anda tidak akan hilang saat berganti perangkat. Cukup masuk dengan Akun Google di perangkat baru,
+              semua kelas, nilai, kehadiran, dan catatan refleksi akan langsung otomatis tersinkronisasi.
+            </p>
+            {currentUser && (
+              <p className="text-[11px] text-emerald-300 font-medium">
+                ✓ Terhubung sebagai: <b>{currentUser.email}</b>{' '}
+                {lastSyncTime && `(Terakhir sinkron: ${new Date(lastSyncTime).toLocaleTimeString('id-ID')})`}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+            {onOpenCloudModal && (
+              <button
+                onClick={onOpenCloudModal}
+                className="px-5 py-2.5 bg-white text-indigo-900 font-bold text-xs rounded-xl hover:bg-indigo-50 active:bg-indigo-100 shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>{currentUser ? 'Kelola Sinkronisasi Cloud' : 'Masuk / Aktifkan Cloud'}</span>
+              </button>
+            )}
+
+            {currentUser && onSyncToCloud && (
+              <button
+                onClick={onSyncToCloud}
+                disabled={isSyncing}
+                className="px-5 py-2.5 bg-indigo-700/80 hover:bg-indigo-600 text-white font-semibold text-xs rounded-xl border border-indigo-400/30 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isSyncing ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-3.5 h-3.5" />
+                )}
+                <span>Simpan ke Cloud Sekarang</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* SECTION 1: PENGATURAN UMUM & AMBANG BATAS (Requirement 37) */}

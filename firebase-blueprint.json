@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing authenticated teacher information",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique authentication UID of the teacher",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the teacher",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the teacher",
+          "maxLength": 256
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL to teacher profile photo",
+          "maxLength": 1024
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last profile update",
+          "maxLength": 64
+        }
+      },
+      "required": ["userId", "email"]
+    },
+    "AppData": {
+      "title": "AppData",
+      "description": "Complete teacher grading dataset synchronized across devices",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last sync",
+          "maxLength": 64
+        },
+        "version": {
+          "type": "string",
+          "description": "Schema version string",
+          "maxLength": 32
+        },
+        "dataPayload": {
+          "type": "string",
+          "description": "Serialized JSON string of school, classes, students, grades, and reflections",
+          "maxLength": 1048576
+        }
+      },
+      "required": ["userId", "updatedAt", "dataPayload"]
+    },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Health check document for testing Firestore connectivity",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Status message",
+          "maxLength": 64
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Root user profile document"
+    },
+    "/users/{userId}/appData/{dataId}": {
+      "schema": "AppData",
+      "description": "Synchronized application grading data documents"
+    },
+    "/test/{testId}": {
+      "schema": "TestConnection",
+      "description": "Test connectivity collection"
+    }
+  }
+}

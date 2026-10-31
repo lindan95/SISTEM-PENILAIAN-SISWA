@@ -35,6 +35,17 @@ import { RaporView } from './components/RaporView';
 import { SiswaBermasalahView } from './components/SiswaBermasalahView';
 import { GasCodeView } from './components/GasCodeView';
 import { BackupPengaturanView } from './components/BackupPengaturanView';
+import { CloudSyncModal } from './components/CloudSyncModal';
+
+// Firebase Services & Auth
+import { User, onAuthStateChanged } from 'firebase/auth';
+import {
+  auth,
+  loginWithGoogle,
+  logoutUser,
+  syncDataToCloud,
+  loadDataFromCloud,
+} from './services/firebase';
 
 export default function App() {
   // Navigation & context states
@@ -107,6 +118,18 @@ export default function App() {
   );
   const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
   const [gasConfig, setGasConfig] = useState<GasConnectionConfig>(() => StorageService.getGasConfig());
+
+  // Firebase Multi-Device Cloud Sync States
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('sps_last_cloud_sync');
+    } catch {
+      return null;
+    }
+  });
 
   // Global Context Filter States
   const activeTA = tahunAjaranList.find((t) => t.status === 'Aktif') || tahunAjaranList[0];
@@ -298,9 +321,170 @@ export default function App() {
     setAbsensiList(StorageService.getAbsensiList());
     setNilaiList(StorageService.getNilaiList());
     setBobotNilai(StorageService.getBobotNilai());
+    if (jsonData.catatanRefleksi) {
+      setCatatanRefleksiList(jsonData.catatanRefleksi);
+    } else {
+      setCatatanRefleksiList(StorageService.getCatatanRefleksiList());
+    }
     setSettings(StorageService.getSettings());
     setGasConfig(StorageService.getGasConfig());
   };
+
+  // ==========================================
+  // FIREBASE MULTI-DEVICE CLOUD SYNCHRONIZATION
+  // ==========================================
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          setIsSyncing(true);
+          // Check if cloud data exists
+          const cloudData = await loadDataFromCloud(user.uid);
+          if (cloudData) {
+            // Apply cloud data to local database so new device immediately receives old data
+            handleRestoreJson(cloudData);
+            const nowIso = new Date().toISOString();
+            setLastSyncTime(nowIso);
+            try {
+              localStorage.setItem('sps_last_cloud_sync', nowIso);
+            } catch {
+              // ignore
+            }
+            showToast(`Data lama berhasil dimuat dari Cloud untuk akun ${user.email}!`, 'success');
+          } else {
+            // First time logging in: backup current local database to cloud so other devices can pull it
+            const currentAllData = StorageService.exportAllData();
+            await syncDataToCloud(user.uid, currentAllData);
+            const nowIso = new Date().toISOString();
+            setLastSyncTime(nowIso);
+            try {
+              localStorage.setItem('sps_last_cloud_sync', nowIso);
+            } catch {
+              // ignore
+            }
+            showToast('Data lokal Anda telah dicadangkan ke Cloud untuk perangkat baru.', 'info');
+          }
+        } catch (err) {
+          console.error('Initial cloud sync error:', err);
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  const handleLoginGoogle = async () => {
+    try {
+      setIsSyncing(true);
+      const user = await loginWithGoogle();
+      showToast(`Berhasil masuk sebagai ${user.displayName || user.email}`, 'success');
+    } catch (err: any) {
+      showToast(`Gagal login Google: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleLogoutGoogle = async () => {
+    try {
+      await logoutUser();
+      setCurrentUser(null);
+      showToast('Berhasil keluar dari akun Google.', 'info');
+    } catch (err: any) {
+      showToast(`Gagal keluar: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+    }
+  };
+
+  const handleSyncToCloud = async () => {
+    if (!currentUser) {
+      setIsCloudModalOpen(true);
+      return;
+    }
+    try {
+      setIsSyncing(true);
+      const allData = StorageService.exportAllData();
+      await syncDataToCloud(currentUser.uid, allData);
+      const nowIso = new Date().toISOString();
+      setLastSyncTime(nowIso);
+      try {
+        localStorage.setItem('sps_last_cloud_sync', nowIso);
+      } catch {
+        // ignore
+      }
+      showToast('Data berhasil disimpan ke Cloud! Dapat langsung dibuka di perangkat lain.', 'success');
+    } catch (err: any) {
+      showToast(`Gagal menyimpan ke Cloud: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    if (!currentUser) {
+      setIsCloudModalOpen(true);
+      return;
+    }
+    try {
+      setIsSyncing(true);
+      const cloudData = await loadDataFromCloud(currentUser.uid);
+      if (!cloudData) {
+        showToast('Belum ada data tersimpan di Cloud untuk akun ini.', 'warning');
+        return;
+      }
+      handleRestoreJson(cloudData);
+      const nowIso = new Date().toISOString();
+      setLastSyncTime(nowIso);
+      try {
+        localStorage.setItem('sps_last_cloud_sync', nowIso);
+      } catch {
+        // ignore
+      }
+      showToast('Data berhasil diperbarui dari Cloud!', 'success');
+    } catch (err: any) {
+      showToast(`Gagal memuat data dari Cloud: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Auto-sync debounced to Cloud whenever critical states change and user is logged in
+  useEffect(() => {
+    if (!currentUser) return;
+    const timer = setTimeout(async () => {
+      try {
+        const allData = StorageService.exportAllData();
+        await syncDataToCloud(currentUser.uid, allData);
+        const nowIso = new Date().toISOString();
+        setLastSyncTime(nowIso);
+        try {
+          localStorage.setItem('sps_last_cloud_sync', nowIso);
+        } catch {
+          // ignore
+        }
+      } catch (err) {
+        console.error('Auto cloud sync error:', err);
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [
+    currentUser,
+    guru,
+    sekolah,
+    tahunAjaranList,
+    kelasList,
+    mapelList,
+    relasiList,
+    siswaList,
+    absensiList,
+    nilaiList,
+    bobotNilai,
+    catatanRefleksiList,
+    settings,
+  ]);
 
   // Quick Problem Student Count for Badge
   const problemCount = StorageService.detectProblemStudents(
@@ -334,6 +518,9 @@ export default function App() {
         selectedSemester={selectedSemester}
         selectedKelasId={selectedKelasId}
         selectedMapelId={selectedMapelId}
+        currentUser={currentUser}
+        isSyncing={isSyncing}
+        onOpenCloudModal={() => setIsCloudModalOpen(true)}
         onSelectTahunAjaran={handleTahunAjaranChange}
         onSelectSemester={setSelectedSemester}
         onSelectKelas={setSelectedKelasId}
@@ -590,10 +777,37 @@ export default function App() {
               onResetAllData={handleResetAllData}
               onRestoreJson={handleRestoreJson}
               showToast={showToast}
+              currentUser={currentUser}
+              onOpenCloudModal={() => setIsCloudModalOpen(true)}
+              onSyncToCloud={handleSyncToCloud}
+              onPullFromCloud={handlePullFromCloud}
+              lastSyncTime={lastSyncTime}
+              isSyncing={isSyncing}
             />
           )}
         </main>
       </div>
+
+      {/* Cloud Sync Modal for Multi-Device synchronization */}
+      <CloudSyncModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        currentUser={currentUser}
+        onLogin={handleLoginGoogle}
+        onLogout={handleLogoutGoogle}
+        onSyncToCloud={handleSyncToCloud}
+        onPullFromCloud={handlePullFromCloud}
+        lastSyncTime={lastSyncTime}
+        isSyncing={isSyncing}
+        totalStats={{
+          siswa: siswaList.length,
+          kelas: kelasList.length,
+          mapel: mapelList.length,
+          nilai: nilaiList.length,
+          absensi: absensiList.length,
+          refleksi: catatanRefleksiList.length,
+        }}
+      />
     </div>
   );
 }

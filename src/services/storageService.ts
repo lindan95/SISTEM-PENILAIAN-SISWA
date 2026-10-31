@@ -1143,6 +1143,7 @@ export class StorageService {
       komponenNilai: this.getKomponenList(),
       nilaiDetail: this.getNilaiDetailList(),
       bobotNilai: this.get<BobotNilai[]>(STORAGE_KEYS.BOBOT_NILAI, [defaultBobotNilai]),
+      catatanRefleksi: this.getCatatanRefleksiList(),
       settings: this.getSettings(),
     };
     return JSON.stringify(backupObj, null, 2);
@@ -1162,6 +1163,7 @@ export class StorageService {
       if (data.komponenNilai) this.set(STORAGE_KEYS.KOMPONEN_NILAI, data.komponenNilai);
       if (data.nilaiDetail) this.set(STORAGE_KEYS.NILAI_DETAIL, data.nilaiDetail);
       if (data.bobotNilai) this.set(STORAGE_KEYS.BOBOT_NILAI, data.bobotNilai);
+      if (data.catatanRefleksi) this.saveCatatanRefleksiList(data.catatanRefleksi);
       if (data.settings) this.set(STORAGE_KEYS.SETTINGS, data.settings);
 
       this.addLog('Restore Data', 'Guru', `Database dipulihkan dari cadangan (${data.exportedAt || 'Eksternal'})`);
@@ -1294,6 +1296,7 @@ export class StorageService {
       bobot: this.getBobotNilai(),
       settings: this.getSettings(),
       gasConfig: this.getGasConfig(),
+      catatanRefleksi: this.getCatatanRefleksiList(),
     };
   }
 
@@ -1308,6 +1311,7 @@ export class StorageService {
     if (data.absensi) this.set(STORAGE_KEYS.ABSENSI, data.absensi);
     if (data.nilai) this.set('sps_nilai_siswa_v1', data.nilai);
     if (data.bobot) this.saveBobotNilai(data.bobot);
+    if (data.catatanRefleksi) this.saveCatatanRefleksiList(data.catatanRefleksi);
     if (data.settings) this.saveSettings(data.settings);
     if (data.gasConfig) this.saveGasConfig(data.gasConfig);
     this.addLog('Restore Sistem', 'Guru', 'Database berhasil dipulihkan dari cadangan eksternal.');

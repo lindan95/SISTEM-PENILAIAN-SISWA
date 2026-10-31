@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['userId', 'email']) &&
+        data.userId is string &&
+        data.userId == userId &&
+        data.email is string &&
+        data.email.size() <= 256;
+    }
+
+    function isValidAppData(data, userId) {
+      return data.keys().hasAll(['userId', 'updatedAt', 'dataPayload']) &&
+        data.userId is string &&
+        data.userId == userId &&
+        data.updatedAt is string &&
+        data.updatedAt.size() <= 64 &&
+        data.dataPayload is string &&
+        data.dataPayload.size() <= 1048576;
+    }
+
+    // Health check test connection path
+    match /test/{testId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // User Profile Document
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create, update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // User's Synchronized Application Data Collection
+      match /appData/{dataId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create, update: if isOwner(userId) && isValidId(userId) && isValidId(dataId) && isValidAppData(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(dataId);
+      }
+    }
+  }
+}
