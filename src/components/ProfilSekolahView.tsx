@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { ProfilSekolah } from '../types';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface ProfilSekolahViewProps {
   sekolah: ProfilSekolah;
@@ -25,22 +26,22 @@ export const ProfilSekolahView: React.FC<ProfilSekolahViewProps> = ({ sekolah, o
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoSekolah' | 'logoPendidikan') => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoSekolah' | 'logoPendidikan') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Ukuran berkas logo maksimal adalah 2MB', 'warning');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Ukuran berkas logo maksimal adalah 5MB', 'warning');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target?.result as string;
-      setFormData((prev) => ({ ...prev, [field]: base64 }));
-      showToast(`Logo ${field === 'logoSekolah' ? 'Sekolah' : 'Pendidikan'} berhasil dimuat!`, 'success');
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedBase64 = await compressImageFile(file, 300, 300, 0.8);
+      setFormData((prev) => ({ ...prev, [field]: compressedBase64 }));
+      showToast(`Logo ${field === 'logoSekolah' ? 'Sekolah' : 'Pendidikan'} berhasil dimuat & dioptimalkan!`, 'success');
+    } catch {
+      showToast('Gagal memproses gambar logo.', 'error');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

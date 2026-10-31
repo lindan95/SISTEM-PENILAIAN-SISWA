@@ -12,6 +12,7 @@ import {
   FileBadge,
 } from 'lucide-react';
 import { ProfilGuru } from '../types';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface ProfilGuruViewProps {
   guru: ProfilGuru;
@@ -28,25 +29,25 @@ export const ProfilGuruView: React.FC<ProfilGuruViewProps> = ({ guru, onSave, sh
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Ukuran foto maksimal adalah 2MB', 'warning');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Ukuran foto maksimal adalah 5MB', 'warning');
       return;
     }
 
-    setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const base64 = uploadEvent.target?.result as string;
-      setFormData((prev) => ({ ...prev, fotoUrl: base64 }));
+    try {
+      setIsUploading(true);
+      const compressedBase64 = await compressImageFile(file, 300, 300, 0.75);
+      setFormData((prev) => ({ ...prev, fotoUrl: compressedBase64 }));
+      showToast('Foto berhasil dimuat & dioptimalkan. Jangan lupa klik "Simpan Profil".', 'success');
+    } catch {
+      showToast('Gagal memproses gambar foto.', 'error');
+    } finally {
       setIsUploading(false);
-      showToast('Foto berhasil dimuat. Jangan lupa klik "Simpan Profil".', 'success');
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

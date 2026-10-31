@@ -12,6 +12,7 @@ import {
   Cloud,
   CloudCheck,
   RefreshCw,
+  Smartphone,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { TahunAjaran, Kelas, Mapel, Semester, ProfilGuru } from '../types';
@@ -28,6 +29,7 @@ interface HeaderProps {
   currentUser?: User | null;
   isSyncing?: boolean;
   onOpenCloudModal?: () => void;
+  onOpenAndroidModal?: () => void;
   onSelectTahunAjaran: (val: string) => void;
   onSelectSemester: (val: Semester) => void;
   onSelectKelas: (val: string) => void;
@@ -49,6 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   isSyncing,
   onOpenCloudModal,
+  onOpenAndroidModal,
   onSelectTahunAjaran,
   onSelectSemester,
   onSelectKelas,
@@ -91,6 +94,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action icons & Teacher Badge */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Android App Button */}
+          {onOpenAndroidModal && (
+            <button
+              onClick={onOpenAndroidModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 cursor-pointer shadow-2xs"
+              title="Instal atau Buka Aplikasi di HP Android"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden sm:inline">Aplikasi Android</span>
+              <span className="text-[10px] px-1 py-0.2 bg-emerald-600 text-white rounded font-bold">APK</span>
+            </button>
+          )}
+
           {/* Cloud Multi-Device Sync Indicator & Button */}
           {onOpenCloudModal && (
             <button

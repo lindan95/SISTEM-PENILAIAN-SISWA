@@ -22,6 +22,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Smartphone,
 } from 'lucide-react';
 import { ActiveMenu } from '../types';
 
@@ -36,6 +37,7 @@ export interface SidebarProps {
   problemStudentCount?: number;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onOpenAndroidModal?: () => void;
 }
 
 interface NavItem {
@@ -64,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   problemStudentCount,
   isCollapsed = false,
   onToggleCollapse,
+  onOpenAndroidModal,
 }) => {
   // Normalize mobile open state and callbacks
   const open = isOpen ?? isMobileOpen ?? false;
@@ -332,6 +335,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Sidebar Footer */}
         <div className="p-2.5 border-t border-slate-800 bg-slate-950/70 text-[11px] text-slate-400 shrink-0 space-y-2">
+          {/* Android App Install Action */}
+          {onOpenAndroidModal && (
+            <button
+              onClick={onOpenAndroidModal}
+              className={`w-full flex items-center rounded-xl transition cursor-pointer border ${
+                isCollapsed
+                  ? 'justify-center p-2 bg-emerald-950/60 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/80 hover:text-white'
+                  : 'p-2.5 bg-gradient-to-r from-emerald-950/80 via-slate-900 to-indigo-950/80 border-emerald-500/40 text-left hover:border-emerald-400/70 group shadow-sm'
+              }`}
+              title="Instal Aplikasi di Android (PWA / WebAPK)"
+            >
+              {isCollapsed ? (
+                <Smartphone className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <div className="flex items-center gap-2.5 w-full">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-300 group-hover:text-emerald-200">
+                        Aplikasi Android
+                      </span>
+                      <span className="text-[9px] px-1 py-0.2 rounded font-bold bg-emerald-600/40 text-emerald-300 border border-emerald-500/30">
+                        WebAPK
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      Pasang di layar HP Android
+                    </p>
+                  </div>
+                </div>
+              )}
+            </button>
+          )}
+
           {/* Quick collapse button for desktop */}
           {onToggleCollapse && (
             <button

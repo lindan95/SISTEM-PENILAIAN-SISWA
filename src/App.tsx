@@ -36,6 +36,7 @@ import { SiswaBermasalahView } from './components/SiswaBermasalahView';
 import { GasCodeView } from './components/GasCodeView';
 import { BackupPengaturanView } from './components/BackupPengaturanView';
 import { CloudSyncModal } from './components/CloudSyncModal';
+import { AndroidInstallModal } from './components/AndroidInstallModal';
 
 // Firebase Services & Auth
 import { User, onAuthStateChanged } from 'firebase/auth';
@@ -122,6 +123,7 @@ export default function App() {
   // Firebase Multi-Device Cloud Sync States
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => {
     try {
@@ -376,13 +378,33 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  const parseReadableError = (err: any, defaultMsg = 'Terjadi kesalahan'): string => {
+    if (!err) return defaultMsg;
+    const msg = err.message || String(err);
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed && parsed.error) {
+        if (parsed.error.includes('exceeds the maximum size')) {
+          return 'Ukuran dokumen melebihi batas 1MB. Sistem telah mengaktifkan kompresi & pembagian paket data.';
+        }
+        if (parsed.error.includes('permission-denied') || parsed.error.includes('Missing or insufficient permissions')) {
+          return 'Izin akses ditolak. Pastikan Anda telah masuk dengan Akun Google resmi.';
+        }
+        return parsed.error;
+      }
+    } catch {
+      // Not a JSON string
+    }
+    return msg;
+  };
+
   const handleLoginGoogle = async () => {
     try {
       setIsSyncing(true);
       const user = await loginWithGoogle();
       showToast(`Berhasil masuk sebagai ${user.displayName || user.email}`, 'success');
     } catch (err: any) {
-      showToast(`Gagal login Google: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+      showToast(`Gagal login Google: ${parseReadableError(err)}`, 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -394,7 +416,7 @@ export default function App() {
       setCurrentUser(null);
       showToast('Berhasil keluar dari akun Google.', 'info');
     } catch (err: any) {
-      showToast(`Gagal keluar: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+      showToast(`Gagal keluar: ${parseReadableError(err)}`, 'error');
     }
   };
 
@@ -416,7 +438,7 @@ export default function App() {
       }
       showToast('Data berhasil disimpan ke Cloud! Dapat langsung dibuka di perangkat lain.', 'success');
     } catch (err: any) {
-      showToast(`Gagal menyimpan ke Cloud: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+      showToast(`Gagal menyimpan ke Cloud: ${parseReadableError(err)}`, 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -444,7 +466,7 @@ export default function App() {
       }
       showToast('Data berhasil diperbarui dari Cloud!', 'success');
     } catch (err: any) {
-      showToast(`Gagal memuat data dari Cloud: ${err?.message || 'Terjadi kesalahan'}`, 'error');
+      showToast(`Gagal memuat data dari Cloud: ${parseReadableError(err)}`, 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -521,6 +543,7 @@ export default function App() {
         currentUser={currentUser}
         isSyncing={isSyncing}
         onOpenCloudModal={() => setIsCloudModalOpen(true)}
+        onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         onSelectTahunAjaran={handleTahunAjaranChange}
         onSelectSemester={setSelectedSemester}
         onSelectKelas={setSelectedKelasId}
@@ -553,6 +576,7 @@ export default function App() {
           problemStudentCount={problemCount}
           isCollapsed={isDesktopCollapsed}
           onToggleCollapse={toggleDesktopSidebar}
+          onOpenAndroidModal={() => setIsAndroidModalOpen(true)}
         />
 
         {/* View Content Body */}
@@ -807,6 +831,13 @@ export default function App() {
           absensi: absensiList.length,
           refleksi: catatanRefleksiList.length,
         }}
+      />
+
+      {/* Android & PWA WebAPK Installation Modal */}
+      <AndroidInstallModal
+        isOpen={isAndroidModalOpen}
+        onClose={() => setIsAndroidModalOpen(false)}
+        showToast={showToast}
       />
     </div>
   );
